@@ -86,18 +86,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private val routine = combine(
-        db.habitDao().all(), db.activityDao().all(), db.attributeDao().all(), db.subjectDao().all(), db.studySessionDao().all(), db.historyDao().recent()
-    ) { habits, activities, attributes, subjects, sessions, history ->
-        listOf(habits, activities, attributes, subjects, sessions, history)
+        db.habitDao().all(),
+        db.activityDao().all(),
+        db.attributeDao().all(),
+        db.subjectDao().all(),
+        db.studySessionDao().all()
+    ) { habits, activities, attributes, subjects, sessions ->
+        RoutinePart(habits, activities, attributes, subjects, sessions)
+    }.combine(db.historyDao().recent()) { part, history ->
+        RoutineData(part, history)
     }
 
+    private data class RoutinePart(
+        val habits: List<HabitEntity>,
+        val activities: List<ActivityEntity>,
+        val attributes: List<AttributeEntity>,
+        val subjects: List<SubjectEntity>,
+        val sessions: List<StudySessionEntity>
+    )
+
+    private data class RoutineData(
+        val part: RoutinePart,
+        val history: List<HistoryEntity>
+    )
+
     val state: StateFlow<UiState> = combine(core, extra, routine) { c, e, r ->
-        @Suppress("UNCHECKED_CAST") val habits = r[0] as List<HabitEntity>
-        @Suppress("UNCHECKED_CAST") val activities = r[1] as List<ActivityEntity>
-        @Suppress("UNCHECKED_CAST") val attributes = r[2] as List<AttributeEntity>
-        @Suppress("UNCHECKED_CAST") val subjects = r[3] as List<SubjectEntity>
-        @Suppress("UNCHECKED_CAST") val sessions = r[4] as List<StudySessionEntity>
-        @Suppress("UNCHECKED_CAST") val history = r[5] as List<HistoryEntity>
+        val habits = r.part.habits
+        val activities = r.part.activities
+        val attributes = r.part.attributes
+        val subjects = r.part.subjects
+        val sessions = r.part.sessions
+        val history = r.history
         UiState(
             loaded = true, streak = c.streak, bestStreak = c.best, xp = c.xp, days = c.days,
             challenge = c.challenge, challengeDone = c.done, goals = c.goals, habits = habits, activities = activities,
