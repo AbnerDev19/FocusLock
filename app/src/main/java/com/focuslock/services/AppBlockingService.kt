@@ -42,6 +42,8 @@ class AppBlockingService : AccessibilityService() {
     private var lastBlockedPackage = ""
     private var lastBlockedAt = 0L
     private var visualCooldownUntil = 0L
+    private var visualCandidatePackage = ""
+    private var visualCandidateHits = 0
 
     private val poller = object : Runnable {
         override fun run() {
@@ -127,9 +129,21 @@ class AppBlockingService : AccessibilityService() {
                         if (bitmap != null) {
                             val level = try { classifier.classify(bitmap) } catch (_: Throwable) { ContentLevel.SAFE }
                             bitmap.recycle()
-                            val min = ContentLevel.entries[settings.sensitivity.coerceIn(1, 3)]
-                            if (DomainClassifier.shouldBlock(level, min)) {
-                                handler.post { blockVisual() }
+
+                            // Imagens explícitas só são bloqueadas com alta confiança.
+                            // Conteúdo "sexy/sugestivo" não dispara bloqueio visual.
+                            val candidate = level == ContentLevel.EXPLICIT
+                            if (candidate && fg == foregroundPackage) {
+                                if (visualCandidatePackage == fg) visualCandidateHits++ else {
+                                    visualCandidatePackage = fg
+                                    visualCandidateHits = 1
+                                }
+                                // Exige duas análises consecutivas antes de bloquear,
+                                // reduzindo bastante falsos positivos de uma única captura.
+                                if (visualCandidateHits >= 2) handler.post { blockVisual() }
+                            } else {
+                                visualCandidatePackage = ""
+                                visualCandidateHits = 0
                             }
                         }
                     } finally {
@@ -144,7 +158,9 @@ class AppBlockingService : AccessibilityService() {
     }
 
     private fun blockVisual() {
-        visualCooldownUntil = SystemClock.elapsedRealtime() + 7000
+        visualCandidatePackage = ""
+        visualCandidateHits = 0
+        visualCooldownUntil = SystemClock.elapsedRealtime() + 10000
         scope.launch { AppDatabase.get(this@AppBlockingService).blockLogDao().record() }
         performGlobalAction(GLOBAL_ACTION_HOME)
         handler.postDelayed({

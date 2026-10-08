@@ -40,9 +40,9 @@ class SkinHeuristicClassifier : ImageClassifier {
         val ratio = skin.toFloat() / px.size
         val strongRatio = skinStrong.toFloat() / px.size
         return when {
-            ratio >= 0.30f && strongRatio >= 0.16f -> ContentLevel.EXPLICIT
-            ratio >= 0.21f && strongRatio >= 0.10f -> ContentLevel.SEXUAL
-            ratio >= 0.15f -> ContentLevel.SUGGESTIVE
+            ratio >= 0.52f && strongRatio >= 0.30f -> ContentLevel.EXPLICIT
+            ratio >= 0.40f && strongRatio >= 0.22f -> ContentLevel.SUGGESTIVE
+            ratio >= 0.28f && strongRatio >= 0.14f -> ContentLevel.SUGGESTIVE
             else -> ContentLevel.SAFE
         }
     }
@@ -76,9 +76,9 @@ class TfliteClassifier private constructor(
         val porn = o[3]
         val sexy = o[4]
         return when {
-            porn >= 0.45f || hentai >= 0.55f || porn + hentai >= 0.60f -> ContentLevel.EXPLICIT
-            porn >= 0.20f || hentai >= 0.25f || sexy >= 0.60f -> ContentLevel.SEXUAL
-            sexy >= 0.35f -> ContentLevel.SUGGESTIVE
+            porn >= 0.70f || hentai >= 0.80f || porn + hentai >= 0.85f -> ContentLevel.EXPLICIT
+            porn >= 0.35f || hentai >= 0.45f || sexy >= 0.75f -> ContentLevel.SUGGESTIVE
+            sexy >= 0.50f -> ContentLevel.SUGGESTIVE
             else -> ContentLevel.SAFE
         }
     }
