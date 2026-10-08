@@ -60,10 +60,12 @@ class FocusVpnService : VpnService() {
         val fd = Builder()
             .setSession("FocusLock")
             .addAddress("10.111.0.2", 32)
+            // Only DNS traffic is routed into this VPN. Keeping the route narrow is
+            // intentional: this service is a DNS filter, not a full traffic proxy.
             .addDnsServer("10.111.0.1")
             .addRoute("10.111.0.1", 32)
             .setMtu(1500)
-            .establish() ?: run { stopSelf(); return }
+            .establish() ?: run { running.value = false; stopSelf(); return }
         tun = fd
         running.value = true
         worker = Thread { loop(fd) }.also { it.start() }
@@ -85,9 +87,9 @@ class FocusVpnService : VpnService() {
     }
 
     private fun handle(p: ByteArray, out: FileOutputStream) {
-        if (p.size < 40 || (p[0].toInt() shr 4) != 4 || p[9].toInt() != 17) return
+        if (p.size < 40 || ((p[0].toInt() and 0xF0) != 0x40) || (p[9].toInt() and 0xFF) != 17) return
         val ihl = (p[0].toInt() and 0x0F) * 4
-        if (p.size < ihl + 8 + 12) return
+        if (ihl < 20 || p.size < ihl + 8 + 12) return
         val dport = ((p[ihl + 2].toInt() and 0xFF) shl 8) or (p[ihl + 3].toInt() and 0xFF)
         if (dport != 53) return
         val dns = p.copyOfRange(ihl + 8, p.size)

@@ -9,7 +9,7 @@ import java.time.LocalDateTime
 
 enum class ContentLevel { SAFE, SUGGESTIVE, SEXUAL, EXPLICIT }
 
-/** Classificador visual local. Nenhum modelo vem embutido: sem modelo, `available` é falso e nada é bloqueado por imagem. */
+/** Classificador visual local. Um modelo TFLite pode ser colocado nos assets; o app mantém um fallback heurístico para aparelhos sem modelo. */
 interface ImageClassifier {
     val available: Boolean
     val description: String
