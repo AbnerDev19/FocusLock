@@ -61,3 +61,22 @@ data class AppSettingsEntity(
     val hardcoreEnd: String = "",
     val visualFilter: Boolean = false
 )
+
+
+@Entity(tableName = "habits")
+data class HabitEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, val attrId: Long? = null, val streak: Int = 0, val completedDate: String = "")
+
+@Entity(tableName = "activities")
+data class ActivityEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, val dueAt: Long, val xp: Int, val attrId: Long? = null, val completed: Boolean = false, val failed: Boolean = false)
+
+@Entity(tableName = "attributes")
+data class AttributeEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, val xp: Int = 0, val level: Int = 1)
+
+@Entity(tableName = "subjects")
+data class SubjectEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val name: String, val color: String = "#2383E2")
+
+@Entity(tableName = "study_sessions")
+data class StudySessionEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val subjectId: Long?, val subjectName: String, val durationMinutes: Int, val timestamp: Long = System.currentTimeMillis())
+
+@Entity(tableName = "history")
+data class HistoryEntity(@PrimaryKey(autoGenerate = true) val id: Long = 0, val text: String, val timestamp: Long = System.currentTimeMillis())

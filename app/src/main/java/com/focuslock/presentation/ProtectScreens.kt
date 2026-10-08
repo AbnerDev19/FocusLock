@@ -135,6 +135,7 @@ fun ProtectScreen(
     s: UiState,
     onProtection: ((AppSettingsEntity) -> AppSettingsEntity) -> Unit,
     onHardcore: () -> Unit,
+    onPauseForSetup: () -> Unit,
     onOpen: (String) -> Unit
 ) {
     val ctx = LocalContext.current
@@ -159,6 +160,15 @@ fun ProtectScreen(
 
     LazyColumn(contentPadding = pad, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Header("Segurança", "Proteção", "Ative os serviços e escolha o que o FocusLock bloqueia durante o desafio.") }
+        item {
+            StatusCard(
+                "Configuração do Android",
+                "Se o FocusLock estiver bloqueando os Ajustes ou você ainda não conseguiu ativar a Acessibilidade, pause a proteção temporariamente. Depois de ativar o serviço, volte e ligue a proteção novamente.",
+                tag = if (locked) "Inquebrável ativo" else null,
+                action = if (!locked) "Pausar proteção e abrir Acessibilidade" else null,
+                onAction = if (!locked) { { onPauseForSetup(); ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } } else null
+            )
+        }
         item {
             StatusCard(
                 "Bloqueio de aplicativos",
@@ -221,7 +231,7 @@ fun ProtectScreen(
                         adminLauncher.launch(
                             Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                                 .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin)
-                                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Dificulta desinstalar o FocusLock durante o modo Hardcore.")
+                                .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Dificulta desinstalar o FocusLock durante o modo Inquebrável.")
                         )
                     }
                 }
@@ -230,12 +240,12 @@ fun ProtectScreen(
         item {
             val end = if (locked) LocalDateTime.parse(st.hardcoreEnd).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) else ""
             StatusCard(
-                "Modo Hardcore",
+                "Modo Inquebrável",
                 if (locked) "Ativo até $end. Aplicativos, sites e sensibilidade não podem ser reduzidos ou desligados, e as telas de ajustes do sistema que tratam do FocusLock são bloqueadas."
                 else if (s.protectionActive) "Trava as suas escolhas até o fim do desafio atual."
                 else "Crie um desafio na tela inicial para poder ativar o Hardcore.",
                 tag = if (locked) "Ativo" else null,
-                action = if (!locked && s.protectionActive) "Ativar modo Hardcore" else null,
+                action = if (!locked && s.protectionActive) "Ativar modo Inquebrável" else null,
                 onAction = { confirm = true }
             )
         }
@@ -250,7 +260,7 @@ fun ProtectScreen(
         item {
             StatusCard(
                 "Limites do Android",
-                "Um aplicativo comum não impede de forma absoluta que o dono do aparelho o desative ou desinstale. O Hardcore dificulta, mas não é uma trava total. A VPN pode ser desligada nos ajustes do sistema, e o DNS privado do Android pode contornar o filtro."
+                "Um aplicativo comum não impede de forma absoluta que o dono do aparelho o desative ou desinstale. O Modo Inquebrável dificulta bastante, mas o Android ainda pode revogar permissões ou desativar serviços pelo sistema. A VPN pode ser desligada nos ajustes do sistema, e o DNS privado do Android pode contornar o filtro."
             )
         }
     }
@@ -259,14 +269,14 @@ fun ProtectScreen(
         AlertDialog(
             onDismissRequest = { confirm = false },
             containerColor = C.Surface2, titleContentColor = C.Text, textContentColor = C.Dim,
-            title = { Text("Ativar modo Hardcore?", fontWeight = FontWeight.SemiBold) },
+            title = { Text("Ativar modo Inquebrável?", fontWeight = FontWeight.SemiBold) },
             text = {
                 Text(
-                    "Este modo foi criado para dificultar a interrupção do seu desafio.\n\n" +
+                    "Este modo foi criado para impedir alterações de proteção pelo próprio FocusLock durante o desafio.\n\n" +
                         "Duração: até o fim do desafio atual.\n" +
                         "Aplicativos: ${s.blockedApps.size}  ·  Sites: ${s.domains.size}\n" +
                         "Sensibilidade: ${listOf("", "Sugestivo", "Sexual", "Explícito")[st.sensitivity.coerceIn(1, 3)]}\n\n" +
-                        "Depois de ativado, não dá para desfazer pelo app."
+                        "Depois de ativado, não existe botão para desativá-lo ou pausar a proteção pelo app. Ele termina somente quando o desafio chegar ao fim."
                 )
             },
             confirmButton = {
@@ -298,7 +308,7 @@ fun AppsScreen(s: UiState, onToggle: (String, String) -> Unit, onBack: () -> Uni
 
     LazyColumn(contentPadding = pad, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { BackRow(onBack) }
-        item { Header("Proteção", "Aplicativos", if (s.hardcoreActive) "Modo Hardcore ativo: aplicativos bloqueados não podem ser removidos." else "Escolha o que será bloqueado durante o desafio.") }
+        item { Header("Proteção", "Aplicativos", if (s.hardcoreActive) "Modo Inquebrável ativo: aplicativos bloqueados não podem ser removidos." else "Escolha o que será bloqueado durante o desafio.") }
         item {
             OutlinedTextField(q, { q = it }, Modifier.fillMaxWidth(), label = { Text("Buscar") }, singleLine = true, shape = shape9, colors = fieldColors())
         }

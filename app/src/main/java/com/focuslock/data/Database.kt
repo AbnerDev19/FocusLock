@@ -25,6 +25,49 @@ interface ChallengeDao {
 }
 
 @Dao
+interface HabitDao {
+    @Query("SELECT * FROM habits ORDER BY id DESC") fun all(): Flow<List<HabitEntity>>
+    @Insert suspend fun insert(h: HabitEntity)
+    @Update suspend fun update(h: HabitEntity)
+    @Query("DELETE FROM habits WHERE id = :id") suspend fun delete(id: Long)
+}
+
+@Dao
+interface ActivityDao {
+    @Query("SELECT * FROM activities ORDER BY completed, dueAt") fun all(): Flow<List<ActivityEntity>>
+    @Insert suspend fun insert(a: ActivityEntity)
+    @Update suspend fun update(a: ActivityEntity)
+    @Query("DELETE FROM activities WHERE id = :id") suspend fun delete(id: Long)
+}
+
+@Dao
+interface AttributeDao {
+    @Query("SELECT * FROM attributes ORDER BY name") fun all(): Flow<List<AttributeEntity>>
+    @Insert suspend fun insert(a: AttributeEntity)
+    @Update suspend fun update(a: AttributeEntity)
+    @Query("DELETE FROM attributes WHERE id = :id") suspend fun delete(id: Long)
+}
+
+@Dao
+interface SubjectDao {
+    @Query("SELECT * FROM subjects ORDER BY name") fun all(): Flow<List<SubjectEntity>>
+    @Insert suspend fun insert(s: SubjectEntity)
+}
+
+@Dao
+interface StudySessionDao {
+    @Query("SELECT * FROM study_sessions ORDER BY timestamp DESC") fun all(): Flow<List<StudySessionEntity>>
+    @Insert suspend fun insert(s: StudySessionEntity)
+}
+
+@Dao
+interface HistoryDao {
+    @Query("SELECT * FROM history ORDER BY timestamp DESC LIMIT 30") fun recent(): Flow<List<HistoryEntity>>
+    @Insert suspend fun insert(h: HistoryEntity)
+    @Query("DELETE FROM history") suspend fun clear()
+}
+
+@Dao
 interface GoalDao {
     @Query("SELECT * FROM goals ORDER BY done, id DESC")
     fun all(): Flow<List<GoalEntity>>
@@ -123,14 +166,21 @@ interface AchievementDao {
     entities = [
         ChallengeEntity::class, GoalEntity::class, DailyProgressEntity::class, XpTransactionEntity::class,
         BlockedAppEntity::class, BlockedDomainEntity::class, BlockLogEntity::class,
-        AchievementEntity::class, AppSettingsEntity::class
+        AchievementEntity::class, AppSettingsEntity::class, HabitEntity::class, ActivityEntity::class,
+        AttributeEntity::class, SubjectEntity::class, StudySessionEntity::class, HistoryEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun challengeDao(): ChallengeDao
     abstract fun goalDao(): GoalDao
+    abstract fun habitDao(): HabitDao
+    abstract fun activityDao(): ActivityDao
+    abstract fun attributeDao(): AttributeDao
+    abstract fun subjectDao(): SubjectDao
+    abstract fun studySessionDao(): StudySessionDao
+    abstract fun historyDao(): HistoryDao
     abstract fun progressDao(): ProgressDao
     abstract fun xpDao(): XpDao
     abstract fun blockedAppDao(): BlockedAppDao

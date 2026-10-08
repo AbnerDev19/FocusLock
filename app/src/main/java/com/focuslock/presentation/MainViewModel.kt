@@ -11,6 +11,12 @@ import com.focuslock.data.BlockedDomainEntity
 import com.focuslock.data.ChallengeEntity
 import com.focuslock.data.DailyProgressEntity
 import com.focuslock.data.GoalEntity
+import com.focuslock.data.HabitEntity
+import com.focuslock.data.ActivityEntity
+import com.focuslock.data.AttributeEntity
+import com.focuslock.data.SubjectEntity
+import com.focuslock.data.StudySessionEntity
+import com.focuslock.data.HistoryEntity
 import com.focuslock.data.XpTransactionEntity
 import com.focuslock.domain.Achievements
 import com.focuslock.domain.Gamification
@@ -32,6 +38,12 @@ data class UiState(
     val challenge: ChallengeEntity? = null,
     val challengeDone: Int = 0,
     val goals: List<GoalEntity> = emptyList(),
+    val habits: List<HabitEntity> = emptyList(),
+    val activities: List<ActivityEntity> = emptyList(),
+    val attributes: List<AttributeEntity> = emptyList(),
+    val subjects: List<SubjectEntity> = emptyList(),
+    val studySessions: List<StudySessionEntity> = emptyList(),
+    val history: List<HistoryEntity> = emptyList(),
     val doneToday: Boolean = false,
     val settings: AppSettingsEntity = AppSettingsEntity(),
     val blockedApps: List<BlockedAppEntity> = emptyList(),
@@ -44,7 +56,9 @@ data class UiState(
 
 private data class Core(
     val streak: Int, val best: Int, val xp: Int, val days: Map<LocalDate, Int>,
-    val challenge: ChallengeEntity?, val done: Int, val goals: List<GoalEntity>
+    val challenge: ChallengeEntity?, val done: Int, val goals: List<GoalEntity>, val habits: List<HabitEntity>,
+    val activities: List<ActivityEntity>, val attributes: List<AttributeEntity>, val subjects: List<SubjectEntity>,
+    val studySessions: List<StudySessionEntity>, val history: List<HistoryEntity>
 )
 
 private data class Extra(
@@ -71,13 +85,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Extra(apps, domains, st ?: AppSettingsEntity(), log.associate { LocalDate.parse(it.date) to it.count }, ach.map { it.id }.toSet())
     }
 
-    val state: StateFlow<UiState> = combine(core, extra) { c, e ->
+    private val routine = combine(
+        db.habitDao().all(), db.activityDao().all(), db.attributeDao().all(), db.subjectDao().all(), db.studySessionDao().all(), db.historyDao().recent()
+    ) { habits, activities, attributes, subjects, sessions, history ->
+        listOf(habits, activities, attributes, subjects, sessions, history)
+    }
+
+    val state: StateFlow<UiState> = combine(core, extra, routine) { c, e, r ->
+        @Suppress("UNCHECKED_CAST") val habits = r[0] as List<HabitEntity>
+        @Suppress("UNCHECKED_CAST") val activities = r[1] as List<ActivityEntity>
+        @Suppress("UNCHECKED_CAST") val attributes = r[2] as List<AttributeEntity>
+        @Suppress("UNCHECKED_CAST") val subjects = r[3] as List<SubjectEntity>
+        @Suppress("UNCHECKED_CAST") val sessions = r[4] as List<StudySessionEntity>
+        @Suppress("UNCHECKED_CAST") val history = r[5] as List<HistoryEntity>
         UiState(
             loaded = true, streak = c.streak, bestStreak = c.best, xp = c.xp, days = c.days,
-            challenge = c.challenge, challengeDone = c.done, goals = c.goals, doneToday = LocalDate.now() in c.days,
-            settings = e.settings, blockedApps = e.apps, domains = e.domains, blocks = e.blocks, achievements = e.achievements,
-            hardcoreActive = Protection.hardcoreActive(e.settings),
-            protectionActive = Protection.isActive(c.challenge)
+            challenge = c.challenge, challengeDone = c.done, goals = c.goals, habits = habits, activities = activities,
+            attributes = attributes, subjects = subjects, studySessions = sessions, history = history,
+            doneToday = LocalDate.now() in c.days, settings = e.settings, blockedApps = e.apps, domains = e.domains, blocks = e.blocks, achievements = e.achievements,
+            hardcoreActive = Protection.hardcoreActive(e.settings), protectionActive = Protection.isActive(c.challenge)
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
@@ -118,14 +144,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun addGoal(title: String) {
-        viewModelScope.launch { db.goalDao().insert(GoalEntity(title = title)) }
+    fun addGoal(title: String, xp: Int = 50) {
+        viewModelScope.launch { db.goalDao().insert(GoalEntity(title = title, xp = xp.coerceAtLeast(1))) }
     }
 
     fun completeGoal(goal: GoalEntity) {
+        if (goal.done) return
         viewModelScope.launch {
             db.goalDao().update(goal.copy(done = true))
             db.xpDao().insert(XpTransactionEntity(date = LocalDate.now().toString(), amount = goal.xp, reason = "Objetivo: " + goal.title))
+            history("Objetivo concluído: ${goal.title} (+${goal.xp} XP)")
         }
     }
 
@@ -171,6 +199,53 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun removeDomain(domain: String) {
         if (state.value.hardcoreActive) return
         viewModelScope.launch { db.blockedDomainDao().delete(domain) }
+    }
+
+    private fun history(text: String) { viewModelScope.launch { db.historyDao().insert(HistoryEntity(text = text)) } }
+
+    fun addRoutineGoal(title: String, xp: Int) { addGoal(title, xp); history("Nova missão: $title") }
+
+    fun toggleHabit(habit: HabitEntity) {
+        viewModelScope.launch {
+            val today = LocalDate.now().toString()
+            if (habit.completedDate == today) return@launch
+            val streak = habit.streak + 1
+            db.habitDao().update(habit.copy(streak = streak, completedDate = today))
+            db.xpDao().insert(XpTransactionEntity(date = today, amount = 10, reason = "Hábito: ${habit.name}"))
+            history("Hábito concluído: ${habit.name} (+10 XP)")
+        }
+    }
+
+    fun addHabit(name: String, attrId: Long?) { viewModelScope.launch { db.habitDao().insert(HabitEntity(name = name, attrId = attrId)); history("Novo hábito: $name") } }
+    fun addActivity(name: String, dueAt: Long, xp: Int, attrId: Long?) { viewModelScope.launch { db.activityDao().insert(ActivityEntity(name=name, dueAt=dueAt, xp=xp, attrId=attrId)); history("Nova atividade: $name") } }
+    fun completeActivity(a: ActivityEntity) {
+        if (a.completed || a.failed) return
+        viewModelScope.launch {
+            db.activityDao().update(a.copy(completed=true))
+            db.xpDao().insert(XpTransactionEntity(date=LocalDate.now().toString(), amount=a.xp, reason="Atividade: ${a.name}"))
+            history("Atividade concluída: ${a.name} (+${a.xp} XP)")
+        }
+    }
+    fun addAttribute(name: String) { viewModelScope.launch { db.attributeDao().insert(AttributeEntity(name=name)); history("Novo atributo: $name") } }
+    fun addSubject(name: String) { viewModelScope.launch { db.subjectDao().insert(SubjectEntity(name=name)); history("Nova matéria: $name") } }
+    fun addStudy(minutes: Int, subject: SubjectEntity?) {
+        if (minutes <= 0) return
+        viewModelScope.launch {
+            val name = subject?.name ?: "Estudo Geral"
+            db.studySessionDao().insert(StudySessionEntity(subject?.id, name, minutes))
+            db.xpDao().insert(XpTransactionEntity(date=LocalDate.now().toString(), amount=minutes, reason="Estudo: $name"))
+            history("Estudou $minutes min de $name (+$minutes XP)")
+        }
+    }
+    fun logAction(text: String) { if (text.isNotBlank()) history("Ação: ${text.trim()}") }
+    fun clearHistory() { viewModelScope.launch { db.historyDao().clear() } }
+    fun pauseProtectionForSetup() {
+        if (state.value.hardcoreActive) return
+        viewModelScope.launch {
+            val cur = db.settingsDao().getNow() ?: AppSettingsEntity()
+            db.settingsDao().upsert(cur.copy(protectApps=false, protectSites=false, adultFilter=false, visualFilter=false))
+            history("Proteção pausada para configuração do sistema")
+        }
     }
 
     fun startHardcore() {

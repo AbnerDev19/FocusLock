@@ -36,6 +36,7 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 private val tabs = listOf(
     Tab("home", "Início", Icons.Filled.Home),
     Tab("goals", "Objetivos", Icons.Filled.CheckCircle),
+    Tab("routine", "Rotina", Icons.Filled.Star),
     Tab("progress", "Progresso", Icons.Filled.Star),
     Tab("protect", "Proteção", Icons.Filled.Lock),
     Tab("settings", "Ajustes", Icons.Filled.Settings)
@@ -81,8 +82,9 @@ private fun MainShell(vm: MainViewModel, s: UiState) {
         NavHost(nav, startDestination = "home", modifier = Modifier.weight(1f)) {
             composable("home") { DashboardScreen(s, vm::checkIn, vm::createChallenge) }
             composable("goals") { GoalsScreen(s, vm::addGoal, vm::completeGoal) }
+            composable("routine") { ProductivityScreen(s, vm) }
             composable("progress") { ProgressScreen(s) }
-            composable("protect") { ProtectScreen(s, vm::setProtection, vm::startHardcore) { nav.navigate(it) } }
+            composable("protect") { ProtectScreen(s, vm::setProtection, vm::startHardcore, vm::pauseProtectionForSetup) { nav.navigate(it) } }
             composable("apps") { AppsScreen(s, vm::toggleApp) { nav.popBackStack() } }
             composable("domains") { DomainsScreen(s, vm::addDomain, vm::removeDomain) { nav.popBackStack() } }
             composable("settings") { SettingsScreen(s, vm::setName, vm::setNotifications) }
