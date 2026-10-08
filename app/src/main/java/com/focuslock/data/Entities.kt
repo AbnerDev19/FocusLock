@@ -34,3 +34,29 @@ data class XpTransactionEntity(
     val amount: Int,
     val reason: String
 )
+
+@Entity(tableName = "blocked_apps")
+data class BlockedAppEntity(@PrimaryKey val packageName: String, val label: String)
+
+@Entity(tableName = "blocked_domains")
+data class BlockedDomainEntity(@PrimaryKey val domain: String)
+
+@Entity(tableName = "block_log")
+data class BlockLogEntity(@PrimaryKey val date: String, val count: Int)
+
+@Entity(tableName = "achievements")
+data class AchievementEntity(@PrimaryKey val id: String, val date: String)
+
+@Entity(tableName = "app_settings")
+data class AppSettingsEntity(
+    @PrimaryKey val id: Int = 1,
+    val userName: String = "",
+    val onboarded: Boolean = false,
+    val protectApps: Boolean = true,
+    val protectSites: Boolean = true,
+    val adultFilter: Boolean = true,
+    val sensitivity: Int = 2,
+    val notifications: Boolean = true,
+    val hardcore: Boolean = false,
+    val hardcoreEnd: String = ""
+)

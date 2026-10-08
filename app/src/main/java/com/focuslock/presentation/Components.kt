@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -105,3 +107,9 @@ fun fieldColors() = OutlinedTextFieldDefaults.colors(
     focusedLabelColor = C.Accent2, unfocusedLabelColor = C.Faint,
     focusedContainerColor = Color(0xFF0C0F14), unfocusedContainerColor = Color(0xFF0C0F14)
 )
+
+fun Modifier.appBackground(): Modifier = this.fillMaxSize().drawBehind {
+    drawRect(C.Bg)
+    drawRect(Brush.radialGradient(listOf(C.Accent.copy(alpha = 0.10f), Color.Transparent), Offset(size.width * 0.15f, 0f), size.width))
+    drawRect(Brush.radialGradient(listOf(Color(0xFF6496FF).copy(alpha = 0.06f), Color.Transparent), Offset(size.width * 0.9f, size.height * 0.2f), size.width * 0.9f))
+}

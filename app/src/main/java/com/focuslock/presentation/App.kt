@@ -18,9 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -44,33 +41,24 @@ private val tabs = listOf(
     Tab("settings", "Ajustes", Icons.Filled.Settings)
 )
 
-private val protectionInfo = listOf(
-    InfoItem("Estado atual", "Esta versão registra desafios, objetivos, XP e sequência. A proteção ativa ainda não está ligada."),
-    InfoItem("Bloqueio de aplicativos", "Vai usar o Serviço de Acessibilidade do Android, que você ativa manualmente nos ajustes do sistema.", "Em breve"),
-    InfoItem("Filtro de sites", "Vai usar uma VPN local, só com filtro por domínio (DNS). O app não lê nem quebra conteúdo criptografado.", "Em breve"),
-    InfoItem("Limite do Android", "Um app comum não consegue impedir de forma absoluta que o dono do aparelho o desative ou desinstale.")
-)
-
-private val settingsInfo = listOf(
-    InfoItem("Privacidade", "Desafios, objetivos, XP e dias concluídos ficam salvos apenas neste aparelho. O app não usa internet e não pede permissões."),
-    InfoItem("Aparência", "O FocusLock usa um tema escuro único, pensado para telas pequenas."),
-    InfoItem("Versão", "FocusLock 0.2.0")
-)
-
 @Composable
 fun FocusLockApp(vm: MainViewModel = viewModel()) {
     val s by vm.state.collectAsStateWithLifecycle()
+    when {
+        !s.loaded -> Box(Modifier.appBackground())
+        !s.settings.onboarded -> OnboardingScreen(vm::finishOnboarding)
+        else -> MainShell(vm, s)
+    }
+}
+
+@Composable
+private fun MainShell(vm: MainViewModel, s: UiState) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route
+    val tabRoute = if (current == "apps" || current == "domains") "protect" else current
 
-    Column(
-        Modifier.fillMaxSize().drawBehind {
-            drawRect(C.Bg)
-            drawRect(Brush.radialGradient(listOf(C.Accent.copy(alpha = 0.10f), Color.Transparent), Offset(size.width * 0.15f, 0f), size.width))
-            drawRect(Brush.radialGradient(listOf(Color(0xFF6496FF).copy(alpha = 0.06f), Color.Transparent), Offset(size.width * 0.9f, size.height * 0.2f), size.width * 0.9f))
-        }
-    ) {
+    Column(Modifier.appBackground()) {
         Row(
             Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween
@@ -80,9 +68,12 @@ fun FocusLockApp(vm: MainViewModel = viewModel()) {
                 Text(".", color = C.Accent2, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(7.dp).clip(CircleShape).background(if (s.challenge != null) C.Green else C.Faint))
+                Box(Modifier.size(7.dp).clip(CircleShape).background(if (s.protectionActive) C.Green else C.Faint))
                 Spacer(Modifier.width(8.dp))
-                Text(if (s.challenge != null) "Desafio ativo" else "Sem desafio", color = C.Dim, fontSize = 12.sp)
+                Text(
+                    if (s.hardcoreActive) "Hardcore" else if (s.protectionActive) "Proteção ativa" else "Sem desafio",
+                    color = C.Dim, fontSize = 12.sp
+                )
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.06f)))
@@ -91,14 +82,16 @@ fun FocusLockApp(vm: MainViewModel = viewModel()) {
             composable("home") { DashboardScreen(s, vm::checkIn, vm::createChallenge) }
             composable("goals") { GoalsScreen(s, vm::addGoal, vm::completeGoal) }
             composable("progress") { ProgressScreen(s) }
-            composable("protect") { InfoScreen("Proteção", "Proteção", "O que o FocusLock vai proteger e o que o Android permite.", protectionInfo) }
-            composable("settings") { InfoScreen("Ajustes", "Ajustes", "Privacidade e informações do aplicativo.", settingsInfo) }
+            composable("protect") { ProtectScreen(s, vm::setProtection, vm::startHardcore) { nav.navigate(it) } }
+            composable("apps") { AppsScreen(s, vm::toggleApp) { nav.popBackStack() } }
+            composable("domains") { DomainsScreen(s, vm::addDomain, vm::removeDomain) { nav.popBackStack() } }
+            composable("settings") { SettingsScreen(s, vm::setName, vm::setNotifications) }
         }
 
         Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.07f)))
         Row(Modifier.fillMaxWidth().background(C.Bg.copy(alpha = 0.88f)).height(64.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             tabs.forEach { t ->
-                val on = current == t.route
+                val on = tabRoute == t.route
                 Column(
                     Modifier.weight(1f).padding(horizontal = 3.dp).clip(RoundedCornerShape(9.dp))
                         .background(if (on) Color.White.copy(alpha = 0.05f) else Color.Transparent)

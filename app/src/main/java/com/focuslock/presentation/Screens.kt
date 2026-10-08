@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focuslock.data.GoalEntity
+import com.focuslock.domain.Achievements
 import com.focuslock.domain.Gamification
 import java.time.LocalDate
 import java.time.LocalTime
@@ -86,7 +87,7 @@ fun DashboardScreen(s: UiState, onCheckIn: () -> Unit, onCreate: (String, Int) -
     LazyColumn(contentPadding = pad, verticalArrangement = gap) {
         item {
             Column(Modifier.hero().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Kicker(greet)
+                Kicker(if (s.settings.userName.isBlank()) greet else "$greet, ${s.settings.userName}")
                 H1("${s.streak} ${if (s.streak == 1) "dia" else "dias"} seguidos")
                 if (ch == null) {
                     Lead("Defina um desafio para começar a sua sequência.")
@@ -100,6 +101,12 @@ fun DashboardScreen(s: UiState, onCheckIn: () -> Unit, onCreate: (String, Int) -
                     )
                 }
                 StatRow(listOf(s.xp.toString() to "XP", Gamification.level(s.xp).toString() to "Nível", "${s.bestStreak} d" to "Melhor sequência"))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Proteção", color = C.Faint, fontSize = 12.sp)
+                    TinyChip("${s.blockedApps.size} apps", s.settings.protectApps)
+                    TinyChip("Sites", s.settings.protectSites)
+                    TinyChip("Adulto", s.settings.adultFilter)
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     PrimaryButton(if (s.doneToday) "Dia de hoje concluído" else "Concluir o dia de hoje", onCheckIn, enabled = !s.doneToday)
                     if (ch == null) LineButton("Criar desafio", { dialog = true })
@@ -118,8 +125,9 @@ fun DashboardScreen(s: UiState, onCheckIn: () -> Unit, onCreate: (String, Int) -
                         else {
                             TinyChip(sel.format(fmt))
                             val xp = s.days[sel]
-                            if (xp != null) { TinyChip("+$xp XP", accent = true); TinyChip("Concluído") }
-                            else TinyChip("Sem check-in")
+                            if (xp != null) TinyChip("+$xp XP", accent = true) else TinyChip("Sem check-in")
+                            val b = s.blocks[sel] ?: 0
+                            if (b > 0) TinyChip("$b bloqueios")
                         }
                     }
                 }
@@ -217,6 +225,23 @@ fun ProgressScreen(s: UiState) {
                             Box(Modifier.width(22.dp).height(if (done) 52.dp else 6.dp).clip(RoundedCornerShape(4.dp)).background(if (done) C.Accent else C.Surface3))
                             Spacer(Modifier.height(6.dp))
                             Text(letters[date.dayOfWeek.value - 1], color = C.Faint, fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SectionTitle("Conquistas")
+                Column(Modifier.panel().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Achievements.all.forEach { a ->
+                        val got = a.id in s.achievements
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text(a.title, color = if (got) C.Text else C.Faint, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text(a.description, color = C.Faint, fontSize = 12.sp)
+                            }
+                            TinyChip(if (got) "Conquistada" else "Bloqueada", accent = got)
                         }
                     }
                 }
