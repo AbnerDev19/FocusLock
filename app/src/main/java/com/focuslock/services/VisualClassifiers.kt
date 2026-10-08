@@ -9,51 +9,53 @@ import java.nio.ByteOrder
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 
-/**
- * Detector aproximado, sem modelo: estima a proporção de pixels com cor de pele na tela.
- * Erra para os dois lados (retratos grandes podem disparar, imagens explícitas escuras podem passar).
- */
+/** Fallback local. Não é um modelo NSFW: serve apenas para não deixar o recurso completamente inoperante quando o modelo não está empacotado. */
 class SkinHeuristicClassifier : ImageClassifier {
     override val available = true
-    override val description = "Detector de pele (aproximado)"
+    override val description = "Detector visual local aproximado"
 
     override fun classify(bitmap: Bitmap): ContentLevel {
-        val w = 90
-        val h = 160
+        val w = 128
+        val h = 128
         val small = Bitmap.createScaledBitmap(bitmap, w, h, true)
         val px = IntArray(w * h)
         small.getPixels(px, 0, w, 0, 0, w, h)
         if (small !== bitmap) small.recycle()
+
         var skin = 0
+        var skinStrong = 0
         for (p in px) {
-            val r = (p shr 16) and 0xFF
-            val g = (p shr 8) and 0xFF
-            val b = p and 0xFF
+            val r = (p ushr 16) and 255
+            val g = (p ushr 8) and 255
+            val b = p and 255
             val mx = maxOf(r, g, b)
             val mn = minOf(r, g, b)
-            if (r > 95 && g > 40 && b > 20 && mx - mn > 15 && Math.abs(r - g) > 15 && r > g && r > b) skin++
+            val likelySkin = r > 80 && g > 30 && b > 15 &&
+                r > g && r > b && (r - g) > 8 && mx - mn > 18
+            if (likelySkin) {
+                skin++
+                if (r > 120 && g > 55 && b > 25 && r > g * 1.12f) skinStrong++
+            }
         }
         val ratio = skin.toFloat() / px.size
+        val strongRatio = skinStrong.toFloat() / px.size
         return when {
-            ratio >= 0.55f -> ContentLevel.EXPLICIT
-            ratio >= 0.42f -> ContentLevel.SEXUAL
-            ratio >= 0.32f -> ContentLevel.SUGGESTIVE
+            ratio >= 0.30f && strongRatio >= 0.16f -> ContentLevel.EXPLICIT
+            ratio >= 0.21f && strongRatio >= 0.10f -> ContentLevel.SEXUAL
+            ratio >= 0.15f -> ContentLevel.SUGGESTIVE
             else -> ContentLevel.SAFE
         }
     }
 }
 
-/**
- * Usa app/src/main/assets/nsfw.tflite quando existir. Espera o formato do modelo
- * GantMan/nsfw_model: entrada float32 RGB em [0,1] e 5 saídas (drawings, hentai, neutral, porn, sexy).
- */
+/** Compatível com o modelo de 5 classes do nsfw_model: drawings, hentai, neutral, porn, sexy. */
 class TfliteClassifier private constructor(
     private val interpreter: Interpreter,
     private val width: Int,
     private val height: Int
 ) : ImageClassifier {
     override val available = true
-    override val description = "Modelo TensorFlow Lite (nsfw.tflite)"
+    override val description = "Modelo TensorFlow Lite NSFW"
 
     override fun classify(bitmap: Bitmap): ContentLevel {
         val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
@@ -62,38 +64,42 @@ class TfliteClassifier private constructor(
         if (scaled !== bitmap) scaled.recycle()
         val buf = ByteBuffer.allocateDirect(4 * width * height * 3).order(ByteOrder.nativeOrder())
         for (p in px) {
-            buf.putFloat(((p shr 16) and 0xFF) / 255f)
-            buf.putFloat(((p shr 8) and 0xFF) / 255f)
-            buf.putFloat((p and 0xFF) / 255f)
+            buf.putFloat(((p ushr 16) and 255) / 255f)
+            buf.putFloat(((p ushr 8) and 255) / 255f)
+            buf.putFloat((p and 255) / 255f)
         }
         buf.rewind()
         val out = Array(1) { FloatArray(5) }
         interpreter.run(buf, out)
         val o = out[0]
-        val explicit = o[1] + o[3]
+        val hentai = o[1]
+        val porn = o[3]
         val sexy = o[4]
         return when {
-            explicit >= 0.6f -> ContentLevel.EXPLICIT
-            explicit >= 0.3f || sexy >= 0.7f -> ContentLevel.SEXUAL
-            sexy >= 0.4f -> ContentLevel.SUGGESTIVE
+            porn >= 0.45f || hentai >= 0.55f || porn + hentai >= 0.60f -> ContentLevel.EXPLICIT
+            porn >= 0.20f || hentai >= 0.25f || sexy >= 0.60f -> ContentLevel.SEXUAL
+            sexy >= 0.35f -> ContentLevel.SUGGESTIVE
             else -> ContentLevel.SAFE
         }
     }
+
+    fun close() = interpreter.close()
 
     companion object {
         fun load(ctx: Context): TfliteClassifier? = try {
             val bytes = ctx.assets.open("nsfw.tflite").use { it.readBytes() }
             val model = ByteBuffer.allocateDirect(bytes.size).order(ByteOrder.nativeOrder())
-            model.put(bytes)
-            model.rewind()
+            model.put(bytes).rewind()
             val interp = Interpreter(model)
-            val inShape = interp.getInputTensor(0).shape()
-            val ok = interp.getInputTensor(0).dataType() == DataType.FLOAT32 &&
-                inShape.size == 4 && interp.getOutputTensor(0).shape().last() == 5
-            if (ok) TfliteClassifier(interp, inShape[2], inShape[1]) else null
-        } catch (e: Exception) {
-            null
-        }
+            val input = interp.getInputTensor(0)
+            val output = interp.getOutputTensor(0)
+            val shape = input.shape()
+            if (input.dataType() == DataType.FLOAT32 && shape.size == 4 && output.shape().last() == 5) {
+                TfliteClassifier(interp, shape[2], shape[1])
+            } else {
+                interp.close(); null
+            }
+        } catch (_: Throwable) { null }
     }
 }
 

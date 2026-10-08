@@ -16,11 +16,6 @@ import com.focuslock.R
 object Notifier {
     private const val CHANNEL = "focuslock"
 
-    fun schedule(ctx: Context) = ReminderWorker.schedule(ctx)
-
-    fun cancelScheduled(ctx: Context) = androidx.work.WorkManager.getInstance(ctx)
-        .cancelUniqueWork("reminder")
-
     fun send(ctx: Context, id: Int, text: String) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED

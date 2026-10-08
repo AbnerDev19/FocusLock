@@ -113,22 +113,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun createChallenge(name: String, days: Int) {
-        val clean = name.trim()
-        val duration = days.coerceIn(1, 3650)
-        if (clean.isBlank()) return
         viewModelScope.launch {
-            db.challengeDao().insert(ChallengeEntity(name = clean, startDate = LocalDate.now().toString(), totalDays = duration))
+            db.challengeDao().insert(ChallengeEntity(name = name, startDate = LocalDate.now().toString(), totalDays = days))
         }
     }
 
     fun addGoal(title: String) {
-        val clean = title.trim()
-        if (clean.isBlank()) return
-        viewModelScope.launch { db.goalDao().insert(GoalEntity(title = clean)) }
+        viewModelScope.launch { db.goalDao().insert(GoalEntity(title = title)) }
     }
 
     fun completeGoal(goal: GoalEntity) {
-        if (goal.done) return
         viewModelScope.launch {
             db.goalDao().update(goal.copy(done = true))
             db.xpDao().insert(XpTransactionEntity(date = LocalDate.now().toString(), amount = goal.xp, reason = "Objetivo: " + goal.title))
@@ -147,10 +141,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setName(name: String) = edit { it.copy(userName = name.trim()) }
 
-    fun setNotifications(on: Boolean) {
-        edit { it.copy(notifications = on) }
-        if (on) Notifier.schedule(getApplication()) else Notifier.cancelScheduled(getApplication())
-    }
+    fun setNotifications(on: Boolean) = edit { it.copy(notifications = on) }
 
     /** Alterações de proteção são recusadas enquanto o modo Hardcore estiver ativo. */
     fun setProtection(f: (AppSettingsEntity) -> AppSettingsEntity) {

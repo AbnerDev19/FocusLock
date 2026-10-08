@@ -46,7 +46,7 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
             val req = PeriodicWorkRequestBuilder<ReminderWorker>(24, TimeUnit.HOURS)
                 .setInitialDelay(Duration.between(now, first).toMinutes(), TimeUnit.MINUTES)
                 .build()
-            WorkManager.getInstance(ctx).enqueueUniquePeriodicWork("reminder", ExistingPeriodicWorkPolicy.UPDATE, req)
+            WorkManager.getInstance(ctx).enqueueUniquePeriodicWork("reminder", ExistingPeriodicWorkPolicy.KEEP, req)
         }
     }
 }
