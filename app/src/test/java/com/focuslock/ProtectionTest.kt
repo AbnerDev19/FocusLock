@@ -36,3 +36,16 @@ class ProtectionTest {
         assertEquals("1 dias 02 horas 30 minutos", Protection.remainingText(ch, LocalDateTime.of(2026, 10, 29, 21, 30)))
     }
 }
+
+class AdultDomainsTest {
+    @Test fun builtInListMatchesSubdomainsAndTlds() {
+        assertTrue(com.focuslock.domain.AdultDomains.matches("www.pornhub.com"))
+        assertTrue(com.focuslock.domain.AdultDomains.matches("exemplo.xxx"))
+        assertFalse(com.focuslock.domain.AdultDomains.matches("wikipedia.org"))
+    }
+
+    @Test fun adultFilterBlocksListedSitesWithoutUserList() {
+        assertTrue(Protection.domainBlocked("br.xhamster.com", emptySet(), true, 3))
+        assertFalse(Protection.domainBlocked("br.xhamster.com", emptySet(), false, 3))
+    }
+}

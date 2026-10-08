@@ -58,5 +58,6 @@ data class AppSettingsEntity(
     val sensitivity: Int = 2,
     val notifications: Boolean = true,
     val hardcore: Boolean = false,
-    val hardcoreEnd: String = ""
+    val hardcoreEnd: String = "",
+    val visualFilter: Boolean = false
 )

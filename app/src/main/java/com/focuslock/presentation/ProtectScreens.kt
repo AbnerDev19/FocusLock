@@ -52,6 +52,12 @@ import kotlinx.coroutines.withContext
 
 private val pad = PaddingValues(start = 16.dp, top = 20.dp, end = 16.dp, bottom = 28.dp)
 private val shape9 = RoundedCornerShape(9.dp)
+private val suggestedApps = setOf(
+    "com.zhiliaoapp.musically", "com.ss.android.ugc.trill", "com.instagram.android", "com.facebook.katana",
+    "com.facebook.lite", "com.twitter.android", "com.google.android.youtube", "com.snapchat.android",
+    "com.kwai.video", "com.reddit.frontpage", "com.pinterest", "com.discord", "org.telegram.messenger",
+    "com.tumblr", "tv.twitch.android.app"
+)
 
 @Composable
 private fun resumeTick(): Int {
@@ -140,6 +146,8 @@ fun ProtectScreen(
     val vpnOn by FocusVpnService.running.collectAsStateWithLifecycle()
     val st = s.settings
     val locked = s.hardcoreActive
+    val hasModel = remember { ctx.assets.list("")?.contains("nsfw.tflite") == true }
+    val engine = if (hasModel) "modelo TensorFlow Lite" else "detector de pele (aproximado)"
     var confirm by remember { mutableStateOf(false) }
 
     val vpnLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
@@ -182,7 +190,8 @@ fun ProtectScreen(
             Column(Modifier.panel(14.dp).padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 ToggleRow("Aplicativos", "Bloquear os aplicativos escolhidos.", st.protectApps, !locked) { v -> onProtection { it.copy(protectApps = v) } }
                 ToggleRow("Sites", "Bloquear os sites da sua lista.", st.protectSites, !locked) { v -> onProtection { it.copy(protectSites = v) } }
-                ToggleRow("Conteúdo adulto", "Bloquear sites adultos conhecidos.", st.adultFilter, !locked) { v -> onProtection { it.copy(adultFilter = v) } }
+                ToggleRow("Conteúdo adulto", "Bloquear sites adultos conhecidos. A lista já vem pronta.", st.adultFilter, !locked) { v -> onProtection { it.copy(adultFilter = v) } }
+                ToggleRow("Filtro visual", "Analisa a tela no aparelho e bloqueia conteúdo explícito. Requer Android 11 ou mais novo.", st.visualFilter, !locked && Build.VERSION.SDK_INT >= 30) { v -> onProtection { it.copy(visualFilter = v) } }
             }
         }
         item {
@@ -232,9 +241,10 @@ fun ProtectScreen(
         }
         item {
             StatusCard(
-                "Filtro visual local",
-                "A arquitetura está pronta (níveis, limite e interface de classificador), mas nenhum modelo de imagem vem incluído, então nada é bloqueado por imagem. Quando houver um modelo, a análise será feita só no aparelho.",
-                tag = "Modelo não incluído"
+                "Filtro visual",
+                if (Build.VERSION.SDK_INT < 30) "Este recurso usa captura de tela pela acessibilidade e exige Android 11 ou mais novo."
+                else "Motor atual: $engine. A tela é analisada só no aparelho, na hora, e a imagem nunca é salva nem enviada. Para mais precisão, coloque um modelo nsfw.tflite em app/src/main/assets e gere o APK de novo.",
+                tag = if (hasModel) "Modelo TFLite" else "Aproximado"
             )
         }
         item {
@@ -279,7 +289,7 @@ fun AppsScreen(s: UiState, onToggle: (String, String) -> Unit, onBack: () -> Uni
                 .map { it.activityInfo.packageName to it.loadLabel(pm).toString() }
                 .distinctBy { it.first }
                 .filter { it.first != ctx.packageName }
-                .sortedBy { it.second.lowercase() }
+                .sortedWith(compareBy({ it.first !in suggestedApps }, { it.second.lowercase() }))
         }
     }
     var q by remember { mutableStateOf("") }
@@ -297,7 +307,7 @@ fun AppsScreen(s: UiState, onToggle: (String, String) -> Unit, onBack: () -> Uni
             Row(Modifier.panel(14.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Column(Modifier.weight(1f)) {
                     Text(label, color = C.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    Text(pkg, color = C.Faint, fontSize = 11.sp, maxLines = 1)
+                    Text(if (pkg in suggestedApps) "Sugerido  ·  $pkg" else pkg, color = C.Faint, fontSize = 11.sp, maxLines = 1)
                 }
                 if (on && s.hardcoreActive) TinyChip("Bloqueado", accent = true)
                 else LineButton(if (on) "Remover" else "Bloquear", { onToggle(pkg, label) }, Modifier.width(100.dp))
@@ -353,7 +363,7 @@ fun SettingsScreen(s: UiState, onName: (String) -> Unit, onNotifications: (Boole
             listOf(
                 "Privacidade" to "Desafios, objetivos, XP, dias, aplicativos e sites escolhidos ficam salvos só neste aparelho. Nada é enviado aos servidores do FocusLock, e imagens suas nunca são enviadas.",
                 "Rede" to "Com o filtro de sites ligado, as consultas de DNS são encaminhadas ao DNS público do Google (8.8.8.8). O app só vê o nome do site consultado, nunca o conteúdo da página, e não guarda esse histórico.",
-                "Permissões" to "Acessibilidade (saber qual app foi aberto e mostrar o bloqueio), VPN (filtro de DNS), notificações (lembretes) e administrador do dispositivo (opcional, dificulta desinstalar).",
+                "Permissões" to "Acessibilidade (saber qual app foi aberto, mostrar o bloqueio e, com o filtro visual ligado, analisar a tela no aparelho), VPN (filtro de DNS), notificações (lembretes) e administrador do dispositivo (opcional, dificulta desinstalar).",
                 "Versão" to "FocusLock 1.0.0"
             )
         ) { (t, b) ->

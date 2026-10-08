@@ -46,13 +46,14 @@ class BlockActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pkg = intent.getStringExtra("pkg").orEmpty()
-        val label = try {
+        val visual = intent.getStringExtra("reason") == "visual"
+        val label = if (visual) "Conteúdo explícito detectado" else try {
             packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
         } catch (e: Exception) { pkg }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = goHome()
         })
-        setContent { FocusLockTheme { BlockScreen(label) { goHome() } } }
+        setContent { FocusLockTheme { BlockScreen(if (visual) "Conteúdo bloqueado" else "Aplicativo bloqueado", label) { goHome() } } }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -68,7 +69,7 @@ class BlockActivity : ComponentActivity() {
 }
 
 @Composable
-private fun BlockScreen(app: String, onBack: () -> Unit) {
+private fun BlockScreen(title: String, app: String, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val remaining by produceState("") {
         val dao = AppDatabase.get(ctx).challengeDao()
@@ -98,7 +99,7 @@ private fun BlockScreen(app: String, onBack: () -> Unit) {
             Text("Respira.", color = C.Text, fontSize = 42.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.03).em)
             Lead("Você escolheu proteger seu tempo.")
             Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Aplicativo bloqueado", color = C.Faint, fontSize = 12.sp)
+                Text(title, color = C.Faint, fontSize = 12.sp)
                 Text(app, color = C.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 if (remaining.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))

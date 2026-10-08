@@ -8,10 +8,12 @@
 - Calendário de disciplina (15 semanas) com detalhe do dia: XP e bloqueios acionados
 - Objetivos com XP e conquistas
 - Bloqueio de aplicativos (Serviço de Acessibilidade) com tela de bloqueio e contagem regressiva do desafio
-- Filtro de sites por DNS (VPN local) com lista própria e filtro de sites adultos em 3 níveis de sensibilidade
+- Filtro de sites por DNS (VPN local): lista de sites adultos já embutida (mais regras por palavra e domínios .xxx/.porn/.adult/.sex), lista própria e 3 níveis de sensibilidade
+- Filtro visual: captura a tela pela acessibilidade (Android 11+), classifica no aparelho e bloqueia conteúdo explícito
 - Modo Hardcore (trava as escolhas até o fim do desafio) e administrador do dispositivo opcional
 - Lembretes (no máximo 1 por dia) e aviso ao concluir o dia
 - Visual escuro no mesmo estilo do portfólio
+- Apps sugeridos (TikTok, Instagram, Facebook, X, YouTube e outros) aparecem primeiro na lista de bloqueio
 
 ## Tecnologias
 Kotlin, Jetpack Compose, Material 3, MVVM, Room, Navigation Compose, WorkManager, AccessibilityService, VpnService, DevicePolicyManager.
@@ -31,7 +33,7 @@ Kotlin, Jetpack Compose, Material 3, MVVM, Room, Navigation Compose, WorkManager
 Abra a pasta, aguarde a sincronização do Gradle e rode no aparelho. No terminal, com Gradle 8.9: `gradle assembleDebug`.
 
 ## Permissões e como funcionam
-- **Acessibilidade**: ativada manualmente em Ajustes do sistema. O serviço só vê qual app foi aberto e, no Hardcore, se uma tela de ajustes do sistema trata do FocusLock. Nada é gravado ou enviado.
+- **Acessibilidade**: ativada manualmente em Ajustes do sistema. O serviço vê qual app foi aberto, no Hardcore verifica se uma tela de ajustes do sistema trata do FocusLock e, com o filtro visual ligado, captura a tela a cada 2,5 s para classificar no aparelho. A imagem não é salva nem enviada.
 - **VPN**: o Android pede confirmação. Só as consultas de DNS passam pelo túnel (10.111.0.1); domínios bloqueados recebem NXDOMAIN e os demais seguem para o DNS 8.8.8.8. Não há interceptação de HTTPS.
 - **Notificações** (Android 13+): lembretes.
 - **Administrador do dispositivo**: opcional; desinstalar o app passa a exigir desativá-lo antes.
@@ -41,7 +43,8 @@ Abra a pasta, aguarde a sincronização do Gradle e rode no aparelho. No termina
 - Um APK comum não impede de forma absoluta que o dono do aparelho o desative ou desinstale (modo seguro, ajustes do sistema, reset).
 - Recursos como impedir a desinstalação de verdade exigem Device Owner (aparelho configurado como gerenciado), o que não é possível num app instalado normalmente.
 - O DNS privado do Android (DNS sobre TLS) e navegadores com DNS próprio podem contornar o filtro de sites. Desative "DNS privado" nos ajustes de rede para o filtro valer.
-- O filtro visual local tem a interface e as regras prontas, mas nenhum modelo de imagem acompanha o app.
+- Filtro visual: sem modelo, usa um detector aproximado de pele, que erra para os dois lados. Para precisão real, coloque um modelo `nsfw.tflite` (formato GantMan/nsfw_model: float32 RGB 0-1, saídas drawings/hentai/neutral/porn/sexy) em `app/src/main/assets/` e gere o APK de novo. O app usa o modelo sozinho quando o arquivo existe.
+- A captura de tela pela acessibilidade só existe no Android 11 ou mais novo.
 
 ## Privacidade
 Tudo fica no aparelho. Nada é enviado a servidores do FocusLock e imagens nunca são enviadas.

@@ -125,7 +125,7 @@ interface AchievementDao {
         BlockedAppEntity::class, BlockedDomainEntity::class, BlockLogEntity::class,
         AchievementEntity::class, AppSettingsEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
