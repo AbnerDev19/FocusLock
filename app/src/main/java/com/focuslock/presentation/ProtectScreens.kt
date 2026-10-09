@@ -166,7 +166,7 @@ fun ProtectScreen(
                 "Se o FocusLock estiver bloqueando os Ajustes ou você ainda não conseguiu ativar a Acessibilidade, pause a proteção temporariamente. Depois de ativar o serviço, volte e ligue a proteção novamente.",
                 tag = if (locked) "Inquebrável ativo" else null,
                 action = if (!locked) "Pausar proteção e abrir Acessibilidade" else null,
-                onAction = if (!locked) { { onPauseForSetup(); ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } } else null
+                onAction = { if (!locked) { onPauseForSetup(); ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
             )
         }
         item {

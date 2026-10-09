@@ -56,9 +56,7 @@ data class UiState(
 
 private data class Core(
     val streak: Int, val best: Int, val xp: Int, val days: Map<LocalDate, Int>,
-    val challenge: ChallengeEntity?, val done: Int, val goals: List<GoalEntity>, val habits: List<HabitEntity>,
-    val activities: List<ActivityEntity>, val attributes: List<AttributeEntity>, val subjects: List<SubjectEntity>,
-    val studySessions: List<StudySessionEntity>, val history: List<HistoryEntity>
+    val challenge: ChallengeEntity?, val done: Int, val goals: List<GoalEntity>
 )
 
 private data class Extra(
@@ -251,7 +249,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (minutes <= 0) return
         viewModelScope.launch {
             val name = subject?.name ?: "Estudo Geral"
-            db.studySessionDao().insert(StudySessionEntity(subject?.id, name, minutes))
+            db.studySessionDao().insert(StudySessionEntity(subjectId = subject?.id, subjectName = name, durationMinutes = minutes))
             db.xpDao().insert(XpTransactionEntity(date=LocalDate.now().toString(), amount=minutes, reason="Estudo: $name"))
             history("Estudou $minutes min de $name (+$minutes XP)")
         }
