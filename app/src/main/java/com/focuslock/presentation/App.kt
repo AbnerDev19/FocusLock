@@ -35,8 +35,7 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 
 private val tabs = listOf(
     Tab("home", "Início", Icons.Filled.Home),
-    Tab("goals", "Objetivos", Icons.Filled.CheckCircle),
-    Tab("routine", "Rotina", Icons.Filled.Star),
+    Tab("routine", "Rotina", Icons.Filled.CheckCircle),
     Tab("progress", "Progresso", Icons.Filled.Star),
     Tab("protect", "Proteção", Icons.Filled.Lock),
     Tab("settings", "Ajustes", Icons.Filled.Settings)
@@ -81,7 +80,6 @@ private fun MainShell(vm: MainViewModel, s: UiState) {
 
         NavHost(nav, startDestination = "home", modifier = Modifier.weight(1f)) {
             composable("home") { DashboardScreen(s, vm::checkIn, vm::createChallenge) }
-            composable("goals") { GoalsScreen(s, vm::addGoal, vm::completeGoal) }
             composable("routine") { ProductivityScreen(s, vm) }
             composable("progress") { ProgressScreen(s) }
             composable("protect") { ProtectScreen(s, vm::setProtection, vm::startHardcore, vm::pauseProtectionForSetup) { nav.navigate(it) } }

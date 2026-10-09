@@ -100,16 +100,24 @@ fun DashboardScreen(s: UiState, onCheckIn: () -> Unit, onCreate: (String, Int) -
                         color = C.Faint, fontSize = 12.sp
                     )
                 }
-                StatRow(listOf(s.xp.toString() to "XP", Gamification.level(s.xp).toString() to "Nível", "${s.bestStreak} d" to "Melhor sequência"))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Proteção", color = C.Faint, fontSize = 12.sp)
-                    TinyChip("${s.blockedApps.size} apps", s.settings.protectApps)
-                    TinyChip("Sites", s.settings.protectSites)
-                    TinyChip("Adulto", s.settings.adultFilter)
-                }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     PrimaryButton(if (s.doneToday) "Dia de hoje concluído" else "Concluir o dia de hoje", onCheckIn, enabled = !s.doneToday)
                     if (ch == null) LineButton("Criar desafio", { dialog = true })
+                }
+            }
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SectionTitle("Resumo")
+                Column(Modifier.panel().padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    StatRow(listOf(s.xp.toString() to "XP", Gamification.level(s.xp).toString() to "Nível", "${s.bestStreak} d" to "Melhor sequência"))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(C.Border))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Proteção", color = C.Faint, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        TinyChip("${s.blockedApps.size} apps", s.settings.protectApps)
+                        TinyChip("Sites", s.settings.protectSites)
+                        TinyChip("Adulto", s.settings.adultFilter)
+                    }
                 }
             }
         }
@@ -161,39 +169,6 @@ fun DashboardScreen(s: UiState, onCheckIn: () -> Unit, onCreate: (String, Int) -
                 TextButton(onClick = { dialog = false }, colors = ButtonDefaults.textButtonColors(contentColor = C.Dim)) { Text("Cancelar") }
             }
         )
-    }
-}
-
-@Composable
-fun GoalsScreen(s: UiState, onAdd: (String) -> Unit, onComplete: (GoalEntity) -> Unit) {
-    var title by remember { mutableStateOf("") }
-    LazyColumn(contentPadding = pad, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            Column(Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Kicker("Metas")
-                H1("Objetivos")
-                Lead("Cada objetivo concluído soma XP ao seu nível.")
-            }
-        }
-        item {
-            Column(Modifier.panel().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    title, { title = it }, Modifier.fillMaxWidth(), label = { Text("Novo objetivo") },
-                    singleLine = true, shape = fieldShape, colors = fieldColors()
-                )
-                PrimaryButton("Adicionar", { if (title.isNotBlank()) { onAdd(title.trim()); title = "" } })
-            }
-        }
-        items(s.goals, key = { it.id }) { g ->
-            Row(Modifier.panel(14.dp).padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(g.title, color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Row { TinyChip("+${g.xp} XP") }
-                }
-                if (g.done) TinyChip("Concluído", accent = true)
-                else LineButton("Concluir", { onComplete(g) }, Modifier.width(96.dp))
-            }
-        }
     }
 }
 

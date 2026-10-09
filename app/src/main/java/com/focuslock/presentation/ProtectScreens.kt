@@ -85,6 +85,11 @@ private fun Header(kicker: String, title: String, lead: String) {
 }
 
 @Composable
+private fun GroupTitle(text: String) {
+    Column(Modifier.padding(top = 16.dp)) { SectionTitle(text) }
+}
+
+@Composable
 private fun BackRow(onBack: () -> Unit) {
     Text("‹  Voltar", color = C.Accent2, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(onClick = onBack).padding(vertical = 6.dp))
 }
@@ -158,17 +163,20 @@ fun ProtectScreen(
         adminOn = dpm.isAdminActive(admin)
     }
 
+    val setupCard: @Composable () -> Unit = {
+        StatusCard(
+            "Ajuda de configuração",
+            "Se o FocusLock estiver bloqueando os Ajustes ou você ainda não conseguiu ativar a Acessibilidade, pause a proteção temporariamente. Depois de ativar o serviço, volte e ligue a proteção novamente.",
+            tag = if (locked) "Inquebrável ativo" else null,
+            action = if (!locked) "Pausar proteção e abrir Acessibilidade" else null,
+            onAction = { if (!locked) { onPauseForSetup(); ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+        )
+    }
+
     LazyColumn(contentPadding = pad, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Header("Segurança", "Proteção", "Ative os serviços e escolha o que o FocusLock bloqueia durante o desafio.") }
-        item {
-            StatusCard(
-                "Configuração do Android",
-                "Se o FocusLock estiver bloqueando os Ajustes ou você ainda não conseguiu ativar a Acessibilidade, pause a proteção temporariamente. Depois de ativar o serviço, volte e ligue a proteção novamente.",
-                tag = if (locked) "Inquebrável ativo" else null,
-                action = if (!locked) "Pausar proteção e abrir Acessibilidade" else null,
-                onAction = { if (!locked) { onPauseForSetup(); ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
-            )
-        }
+
+        item { GroupTitle("Serviços") }
         item {
             StatusCard(
                 "Bloqueio de aplicativos",
@@ -179,6 +187,7 @@ fun ProtectScreen(
                 onAction = { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             )
         }
+        if (!a11y) item { setupCard() }
         item {
             StatusCard(
                 "Filtro de sites (VPN local)",
@@ -196,8 +205,10 @@ fun ProtectScreen(
                 }
             )
         }
+
+        item { GroupTitle("O que bloquear") }
         item {
-            Column(Modifier.panel(14.dp).padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.panel(14.dp).padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 ToggleRow("Aplicativos", "Bloquear os aplicativos escolhidos.", st.protectApps, !locked) { v -> onProtection { it.copy(protectApps = v) } }
                 ToggleRow("Sites", "Bloquear os sites da sua lista.", st.protectSites, !locked) { v -> onProtection { it.copy(protectSites = v) } }
                 ToggleRow("Conteúdo adulto", "Bloquear sites adultos conhecidos. A lista já vem pronta.", st.adultFilter, !locked) { v -> onProtection { it.copy(adultFilter = v) } }
@@ -215,8 +226,26 @@ fun ProtectScreen(
                 }
             }
         }
+        item { GroupTitle("Suas listas") }
         item { LineButton("Aplicativos bloqueados (${s.blockedApps.size})", { onOpen("apps") }) }
         item { LineButton("Sites bloqueados (${s.domains.size})", { onOpen("domains") }) }
+
+        item { GroupTitle("Modo Inquebrável") }
+        item {
+            val end = if (locked) LocalDateTime.parse(st.hardcoreEnd).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) else ""
+            StatusCard(
+                "Trava de proteção",
+                if (locked) "Ativo até $end. Aplicativos, sites e sensibilidade não podem ser reduzidos ou desligados, e as telas de ajustes do sistema que tratam do FocusLock são bloqueadas."
+                else if (s.protectionActive) "Trava as suas escolhas até o fim do desafio atual."
+                else "Crie um desafio na tela inicial para poder ativar o Hardcore.",
+                tag = if (locked) "Ativo" else null,
+                action = if (!locked && s.protectionActive) "Ativar modo Inquebrável" else null,
+                onAction = { confirm = true }
+            )
+        }
+
+        item { GroupTitle("Avançado") }
+        if (a11y) item { setupCard() }
         item {
             StatusCard(
                 "Administrador do dispositivo",
@@ -238,20 +267,8 @@ fun ProtectScreen(
             )
         }
         item {
-            val end = if (locked) LocalDateTime.parse(st.hardcoreEnd).format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) else ""
             StatusCard(
-                "Modo Inquebrável",
-                if (locked) "Ativo até $end. Aplicativos, sites e sensibilidade não podem ser reduzidos ou desligados, e as telas de ajustes do sistema que tratam do FocusLock são bloqueadas."
-                else if (s.protectionActive) "Trava as suas escolhas até o fim do desafio atual."
-                else "Crie um desafio na tela inicial para poder ativar o Hardcore.",
-                tag = if (locked) "Ativo" else null,
-                action = if (!locked && s.protectionActive) "Ativar modo Inquebrável" else null,
-                onAction = { confirm = true }
-            )
-        }
-        item {
-            StatusCard(
-                "Filtro visual",
+                "Sobre o filtro visual",
                 if (Build.VERSION.SDK_INT < 30) "Este recurso usa captura de tela pela acessibilidade e exige Android 11 ou mais novo."
                 else "Motor atual: $engine. A tela é analisada só no aparelho, na hora, e a imagem nunca é salva nem enviada. Para mais precisão, coloque um modelo nsfw.tflite em app/src/main/assets e gere o APK de novo.",
                 tag = if (hasModel) "Modelo TFLite" else "Aproximado"
@@ -353,14 +370,16 @@ fun SettingsScreen(s: UiState, onName: (String) -> Unit, onNotifications: (Boole
     var name by remember(s.settings.userName) { mutableStateOf(s.settings.userName) }
     val perm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LazyColumn(contentPadding = pad, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Header("Ajustes", "Ajustes", "Perfil, lembretes, privacidade e informações do aplicativo.") }
+        item { Header("Conta", "Ajustes", "Perfil, lembretes, privacidade e informações do aplicativo.") }
+        item { GroupTitle("Perfil") }
         item {
             Column(Modifier.panel(14.dp).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Perfil", color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text("Seu nome", color = C.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text("Seu nome") }, singleLine = true, shape = shape9, colors = fieldColors())
                 LineButton("Salvar nome", { onName(name) })
             }
         }
+        item { GroupTitle("Lembretes") }
         item {
             Column(Modifier.panel(14.dp).padding(18.dp)) {
                 ToggleRow("Lembretes", "No máximo uma notificação por dia, perto das 20h.", s.settings.notifications) { on ->
@@ -369,6 +388,7 @@ fun SettingsScreen(s: UiState, onName: (String) -> Unit, onNotifications: (Boole
                 }
             }
         }
+        item { GroupTitle("Sobre o app") }
         items(
             listOf(
                 "Privacidade" to "Desafios, objetivos, XP, dias, aplicativos e sites escolhidos ficam salvos só neste aparelho. Nada é enviado aos servidores do FocusLock, e imagens suas nunca são enviadas.",
